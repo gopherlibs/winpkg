@@ -1,0 +1,53 @@
+version: 2.1
+
+orbs:
+  go: circleci/go@1.7
+  gor: hubci/goreleaser@1.0
+
+workflows:
+  main:
+    jobs:
+      - build:
+          matrix:
+            parameters:
+              go: [ "1.18.5", "1.19.0" ]
+  release:
+    jobs:
+      - build:
+          matrix:
+            parameters:
+              go: [ "1.18.5", "1.19.0" ]
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              # Simplified SemVer regex
+              only: /^v\d+\.\d+\.\d+$/
+      - gor/release:
+          version: "1.10.3"
+          go-version: "1.18.5"
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              # Simplified SemVer regex
+              only: /^v\d+\.\d+\.\d+$/
+          context: main
+
+jobs:
+  build:
+    parameters:
+      go:
+        type: string
+        description: "The Go cimg tag to use."
+    docker:
+      - image: cimg/go:<< parameters.go >>
+    steps:
+      - checkout
+      - go/load-cache
+      - go/mod-download
+      - run:
+          name: "Try Building"
+          command: |
+            go build ./...
+      - go/save-cache
